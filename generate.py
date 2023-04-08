@@ -11,24 +11,14 @@ from pprint import pprint
 from typing import Generator, Tuple
 import torch
 from torch import Tensor
-import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
 from tqdm import tqdm
 from torchvision import datasets, transforms
-import numpy as np
 import matplotlib.pyplot as plt
 
 
-from model import DLS_Model as Net  # for interoperability with the FGSM tutorial
+from model import DLS_Model
 from utils import get_highest_file
-
-# NOTE: This is a hack to get around "User-agent" limitations when downloading MNIST datasets
-#       see, https://github.com/pytorch/vision/issues/3497 for more information
-# from six.moves import urllib
-# opener = urllib.request.build_opener()
-# opener.addheaders = [('User-agent', 'Mozilla/5.0')]
-# urllib.request.install_opener(opener)
 
 
 # FGSM attack code
@@ -36,7 +26,7 @@ def fgsm_attack(image, epsilon, data_grad) -> Tensor:
     # Collect the element-wise sign of the data gradient
     sign_data_grad = data_grad.sign()
     # Create the perturbed image by adjusting each pixel of the input image
-    perturbed_image = image + epsilon*sign_data_grad
+    perturbed_image = image + epsilon * sign_data_grad
     # Adding clipping to maintain [0,1] range
     perturbed_image = torch.clamp(perturbed_image, 0, 1)
     # Return the perturbed image
@@ -49,31 +39,32 @@ def other_attack() -> Tensor:
 
 # This can be used for 2b, 2c, 3b, 3d
 def adversarial_samples(
-    model, loader, epsilon, attack, n_per_class=float("inf")
+    model, loader, device, epsilon, attack, n_per_class=float("inf")
 ) -> Generator[Tuple[Tensor, int, int], None, bool]:
     """
     IMPORTANT:
-    
+
     As long as the order of test_loader is random, simply selecting the first
-    10 samples from each class is sufficient to select random examples. 
-    
+    10 samples from each class is sufficient to select random examples.
+
     However, the order of the loader must be the same for each time this
     function is called, or else each call will end up with diffferent samples.
     Therefore, the loader's shuffle attribute must be false.
-    
+
     Arguments
         Set n_per_class to float("inf") to generate adversarial samples for every
             training element
         Else set to an integer such as 10
-    
+
     Yields
         Tuples of (adv_example, true label, predicted label)
-    
+
     Returns
         Boolean of whether or not n_per_class samples were found for every class
     """
-    
+
     tracker = defaultdict(lambda: 0)
+    model.eval()
 
     # Loop over all examples in test set
     for data, target in loader:
@@ -84,8 +75,8 @@ def adversarial_samples(
         data.requires_grad = True
         # Forward pass the data through the model
         output = model(data)
-        init_pred = output.max(1, keepdim=True)[1] # get the index of the max log-probability
-        
+        init_pred = output.max(1, keepdim=True)[1]  # get the index of the max log-probability
+
         # If the initial prediction is wrong, dont bother attacking, just move on
         if init_pred.item() != target.item():
             continue
@@ -93,7 +84,7 @@ def adversarial_samples(
             continue
         else:
             tracker[target.item()] += 1
-        
+
         # Calculate the loss
         loss = F.nll_loss(output, target)
         # Zero all existing gradients
@@ -109,65 +100,65 @@ def adversarial_samples(
             raise NotImplementedError("Reza")
         else:
             raise ValueError(f"{attack} not recongized.")
-        
+
         final_pred = model(perturbed_data).max(1, keepdim=True)[1]
-        adv_ex = perturbed_data.squeeze().detach().cpu().numpy()
+        adv_ex = perturbed_data
         yield adv_ex, target, final_pred
 
     return all(n == n_per_class for n in tracker.values())
 
 
 def accuracy_vs_epsilon(model, loader, epsilons, attack, output_path, n_per_class=10):
-    
+
     accuracies = {}
     for epsilon in tqdm(epsilons, postfix="epsilon"):
         correct = 0
-        itr = adversarial_samples(model, loader, epsilon, attack, n_per_class)
+        itr = adversarial_samples(model, loader, DEVICE, epsilon, attack, n_per_class)
         with tqdm(itr, total=n_per_class * 10, leave=False, postfix="sample") as pbar:
-            for i, (adv_ex, target, final_pred) in enumerate(itr, 1):
+            for i, (_, target, final_pred) in enumerate(itr, 1):
                 if final_pred == target:
                     correct += 1
                 pbar.update(1)
         print(f"{epsilon=}  {correct=}  {i=}")
         accuracies[epsilon] = correct / i
-    
+
     plt.clf()
     plt.plot(epsilons, [accuracies[e] for e in epsilons])
     plt.savefig(output_path)
-    
-    
+
+
 def task_2bc(attack):
     pretrained_model = get_highest_file("./models")
 
     # MNIST Test dataset and dataloader declaration
     # The sampler will cause the elements to be iterated in the same random order each epoch
-    dataset = datasets.MNIST('./data', train=False, download=True, transform=transforms.Compose([transforms.ToTensor()]))
-    sampler = torch.utils.data.SequentialSampler(dataset)
+    dataset = datasets.MNIST(
+        "./data", train=False, download=True, transform=transforms.Compose([transforms.ToTensor()])
+    )
     loader = torch.utils.data.DataLoader(
-        dataset, 
+        dataset,
         batch_size=1,
         shuffle=False,
     )
     # Initialize the network
-    model = Net().to(device)
+    model = DLS_Model().to(DEVICE)
     # Load the pretrained model
-    model.load_state_dict(torch.load(pretrained_model, map_location=device))
+    model.load_state_dict(torch.load(pretrained_model, map_location=DEVICE))
     # Set the model in evaluation mode. In this case this is for the Dropout layers
     model.eval()
 
-    accuracy_vs_epsilon(model, loader, [.1, .2, .3, .4, .5, .6, .7, .8, .9], attack, f"figures/{attack}.png")
-    
-    
+    accuracy_vs_epsilon(model, loader, [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9], attack, f"figures/{attack}.png")
+
+
 # Adjust this bit as nessecary
 def main():
-    
+
     task_2bc("FGSM")
 
 
 if __name__ == "__main__":
-    torch.manual_seed(2)
+    torch.manual_seed(0)
     # Define what device we are using
-    print("CUDA Available: ",torch.cuda.is_available())
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("CUDA Available: ", torch.cuda.is_available())
+    DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     main()
-
