@@ -83,17 +83,18 @@ def training(
             val_acc = testing(model, valloader, device)
             at_acc = -1
 
-            if attack is not None:
-                at_acc = {}
-                for epsilon in epsilons:
-                    at_loader = (
-                        (adv_ex, target)
-                        for adv_ex, target, _ in adversarial_samples(
-                            model, valloader, device, epsilon, attack, n_per_class=float("inf")
-                        )
-                    )
-                    at_acc[epsilon] = testing(model, at_loader, device)
-                at_acc = statistics.mean(at_acc.values())
+            # This doesn't work at the moment
+            # if attack is not None:
+            #     at_acc = {}
+            #     for epsilon in epsilons:
+            #         at_loader = (
+            #             (adv_ex, target)
+            #             for adv_ex, target, _ in adversarial_samples(
+            #                 model, valloader, device, epsilon, attack, n_per_class=float("inf")
+            #             )
+            #         )
+            #         at_acc[epsilon] = testing(model, at_loader, device)
+            #     at_acc = statistics.mean(at_acc.values())
 
             tepoch.set_postfix(acc=f"{val_acc=} | {at_acc=}")
 
