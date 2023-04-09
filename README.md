@@ -12,11 +12,10 @@ conda install -c conda-forge tqdm==4.36.1 matplotlib==2.1.0
 
 ## Training
 
+Basic
 ```
 python main_mnist.py
 ```
-
-Feel free to cancel once loss no longer decreases or whatever. Checkpointing system will reload the latest trained model from the ./models directory. However, validation accuracy plataeus after around 5 epochs.
 
 Adversarial Training
 ```
