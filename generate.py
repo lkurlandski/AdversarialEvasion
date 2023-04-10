@@ -13,7 +13,7 @@ import torch.nn.functional as F
 from tqdm import tqdm
 from torchvision import datasets, transforms
 import matplotlib.pyplot as plt
-
+import torch.nn as nn
 
 from model import DLS_Model
 from utils import get_highest_file
@@ -43,11 +43,8 @@ def igsm_attack(model, image, label, epsilon, alpha, num_iter) -> Tensor:
         model.zero_grad()
         loss.backward()
         data_grad = perturbed_image.grad.data
-
         sign_data_grad = data_grad.sign()
-
         perturbed_image = perturbed_image + alpha * sign_data_grad
-
         perturbed_image = torch.max(torch.min(perturbed_image, image + epsilon), image - epsilon).detach()
 
     model.train()
@@ -55,6 +52,18 @@ def igsm_attack(model, image, label, epsilon, alpha, num_iter) -> Tensor:
     return perturbed_image
 
 
+def generate_pgd(data, target, device, model, epsilon, alpha = 1e4, num_iter = 100, perturb_wrong = False):
+        # Set requires_grad attribute of tensor. Important for Attack
+        delta = torch.zeros_like(data, requires_grad=True)
+        for t in range(num_iter):
+            loss = nn.CrossEntropyLoss()(model(data + delta), target)
+            loss.backward()
+            delta.data = (delta + data.shape[0]*alpha*delta.grad.data).clamp(-epsilon,epsilon)
+            delta.grad.zero_()
+        perturbed_image = data + delta.detach()
+        perturbed_image = torch.clamp(perturbed_image, 0, 1)
+        return perturbed_image, True
+    
 
 # This can be used for 2b, 2c, 3b, 3d
 def adversarial_samples(
@@ -86,43 +95,82 @@ def adversarial_samples(
     model.eval()
 
     # Loop over all examples in test set
-    for data, target in loader:
-
-        # Send the data and label to the device
-        data, target = data.to(device), target.to(device)
-        # Set requires_grad attribute of tensor. Important for Attack
-        data.requires_grad = True
-        # Forward pass the data through the model
-        output = model(data)
-        init_pred = output.max(1, keepdim=True)[1]  # get the index of the max log-probability
-
-        # If the initial prediction is wrong, dont bother attacking, just move on
-        if init_pred.item() != target.item():
-            continue
-        if tracker[target.item()] >= n_per_class:
-            continue
-        else:
-            tracker[target.item()] += 1
-
-        # Calculate the loss
-        loss = F.nll_loss(output, target)
-        # Zero all existing gradients
-        model.zero_grad()
-        # Calculate gradients of model in backward pass
-        loss.backward()
-        # Collect datagrad
-        data_grad = data.grad.data
-        # Call Attack
-        if attack == "FGSM":
+    if attack == "FGSM":
+        for data, target in loader:
+        
+            # Send the data and label to the device
+            data, target = data.to(device), target.to(device)
+            # Set requires_grad attribute of tensor. Important for Attack
+            data.requires_grad = True
+            # Forward pass the data through the model
+            output = model(data)
+            init_pred = output.max(1, keepdim=True)[1]  # get the index of the max log-probability
+        
+            # If the initial prediction is wrong, dont bother attacking, just move on
+            if init_pred.item() != target.item():
+                continue
+            if tracker[target.item()] >= n_per_class:
+                continue
+            else:
+                tracker[target.item()] += 1
+        
+            # Calculate the loss
+            loss = F.nll_loss(output, target)
+            # Zero all existing gradients
+            model.zero_grad()
+            # Calculate gradients of model in backward pass
+            loss.backward()
+            # Collect datagrad
+            data_grad = data.grad.data
+            # Call Attack
+        
             perturbed_data = fgsm_attack(data, epsilon, data_grad)
-        elif attack == "IGSM":
-            perturbed_data = igsm_attack(model, data, target, epsilon, alpha, num_iter)
-        else:
-            raise ValueError(f"{attack} not recongized.")
+            final_pred = model(perturbed_data).max(1, keepdim=True)[1]
+            adv_ex = perturbed_data
+            yield adv_ex, target, final_pred
+            
+    elif attack == "PGD":
+        for data, target in loader:
+            alpha = 1e4
+            num_iter = 50
+            data, target = data.to(device), target.to(device)
+            # Set requires_grad attribute of tensor. Important for Attack
+            delta = torch.zeros_like(data, requires_grad=True)
+            for t in range(num_iter):
+                loss = nn.CrossEntropyLoss()(model(data + delta), target)
+                loss.backward()
+                delta.data = (delta + data.shape[0]*alpha*delta.grad.data).clamp(-epsilon,epsilon)
+                delta.grad.zero_()
+            perturbed_image = data + delta.detach()
+            perturbed_data  = torch.clamp(perturbed_image, 0, 1)
+            final_pred = model(perturbed_data).max(1, keepdim=True)[1]
+            adv_ex = perturbed_data
+            yield adv_ex, target, final_pred
 
-        final_pred = model(perturbed_data).max(1, keepdim=True)[1]
-        adv_ex = perturbed_data
-        yield adv_ex, target, final_pred
+
+    elif attack == "IGSM":
+        for data, target in loader:
+            alpha = 1e4
+            num_iter = 50
+            perturbed_image = data.clone().detach()
+            data, target = data.to(device), target.to(device)
+            for i in range(num_iter):
+                perturbed_image.requires_grad = True
+                output = model(perturbed_image)
+                loss = F.cross_entropy(output, target)
+                model.zero_grad()
+                loss.backward()
+                data_grad = perturbed_image.grad.data
+                sign_data_grad = data_grad.sign()
+                perturbed_image = perturbed_image + alpha * sign_data_grad
+                perturbed_image = torch.max(torch.min(perturbed_image, image + epsilon), image - epsilon).detach()
+            perturbed_data = perturbed_image
+            final_pred = model(perturbed_data).max(1, keepdim=True)[1]
+            adv_ex = perturbed_data
+            yield adv_ex, target, final_pred
+
+    else:
+        raise ValueError(f"{attack} not recongized.")
 
     return all(n == n_per_class for n in tracker.values())
 
