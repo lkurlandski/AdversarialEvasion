@@ -89,7 +89,7 @@ def test_image_ae(
             init_pred = output.max(1, keepdim=True)[
                 1
             ]  # get the index of the max log-probability
-            perturbed_data = igsm_attack(model, data, target, epsilon, alpha_igsm, 3)
+            perturbed_data = igsm_attack(model, data, target, epsilon)
 
         output = model(perturbed_data)
 
