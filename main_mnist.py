@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 from argparse import ArgumentParser
+from pathlib import Path
 import typing as tp
 
 import torch
@@ -114,7 +115,12 @@ def testing(
                 at_total += labels.size(0)
                 at_correct += (predicted == labels).sum().item()
 
-    return (100.0 * std_correct / std_total), (100.0 * at_correct / at_total)
+    if attack is not None:
+        b = (100.0 * at_correct / at_total)
+    else:
+        b = -1
+
+    return (100.0 * std_correct / std_total), b
 
 
 def main():
@@ -173,27 +179,31 @@ def main():
             criterion,
             standard=True,
             attack=ATTACK,
-            epsilons=[0.05, 0.1, 0.2, 0.25, 0.3],
+            epsilons=EPSILONS,
         )
 
     print(f"Let's visualize some test samples")
     show_some_image(testloader)
-    print("Test accuracy: ", testing(model, testloader, DEVICE))
+    acc = testing(model, testloader, DEVICE, standard=True, attack=ATTACK, epsilons=EPSILONS)
+    print("Test accuracy: ", acc)
 
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument("--attack", type=str, default=None)
-    parser.add_argument("--batch_size", type=int, default=128)
-    parser.add_argument("--device", type=str, default="cuda")
-    parser.add_argument("--epochs", type=int, default=1)
-    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--attack", type=str, default=None, help="Optional adversarial training technique, e.g., `FGSM`, `IGSM`, or `PGD`.")
+    parser.add_argument("--batch_size", type=int, default=128, help="Batch size for training and generating adversarial examples.")
+    parser.add_argument("--device", type=str, default="cuda", help="Hardware device, e.g. `cpu`, `cuda:0`, etc.")
+    parser.add_argument("--epochs", type=int, default=1, help="Number of epochs to run. If a pretrained model exists that has been trained for this many epochs, will not perform training.")
+    parser.add_argument("--pretrained", type=str, default=None, help="Path to a pretrained model. If given, will finetune this model, presumably upon the adversarial examples.")
+    parser.add_argument("--seed", type=int, default=0, help="Seed to control random number generators.")
     args = parser.parse_args()
 
     ATTACK = args.attack
     BATCH_SIZE = args.batch_size
     DEVICE = torch.device(args.device)
     EPOCHS = args.epochs
+    EPSILONS = [0.05, 0.1, 0.2, 0.25, 0.3]
+    PRETRAINED = Path(args.pretrained) if args.pretrained is not None else None
     SEED = args.seed
 
     main()

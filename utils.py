@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from time import *
 
 
-def get_models_path(attack=None):
+def get_models_path(attack: str, pretrained: bool):
     return Path("models") / str(attack)
 
 
