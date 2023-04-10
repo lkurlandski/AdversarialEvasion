@@ -2,11 +2,18 @@ from __future__ import print_function
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+# import pandas as pd
 from time import *
 
 
 def get_models_path(attack: str, pretrained: bool):
-    return Path("models") / str(pretrained) / str(attack)
+    return Path("models") / bool(pretrained) / str(attack)
+
+
+def get_best_model_file(directory: str) -> Path:
+    df = pd.read_csv(directory / "results.csv")
+    i = df[["std_val_acc"]].idxmax()
+    return directory / (df["epoch"][i] + ".pth")
 
 
 def get_highest_file(directory: str) -> Path:
