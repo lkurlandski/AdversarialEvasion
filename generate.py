@@ -30,6 +30,28 @@ def fgsm_attack(image, epsilon, data_grad) -> Tensor:
     # Return the perturbed image
     return perturbed_image
 
+def show_ae_image(adv_examples, number, epsilons):
+    fig = plt.figure(figsize=(8, 10))
+    counter = 0
+    for examples in range(len(adv_examples)):
+        labels = [i[0] for i in adv_examples[examples]]
+        output = [i[1] for i in adv_examples[examples]]
+        images = [i[2] for i in adv_examples[examples]]
+        for i in range(len(adv_examples[examples])):
+            if labels[i] == number:
+                plt.subplot(5, 5, counter + 1)
+                counter += 1
+                plt.tight_layout()
+                plt.imshow(images[i], cmap="gray", interpolation="none")
+                plt.title(
+                    "Epsilon: {}\nOutput: {}".format(epsilons[examples], output[i])
+                )
+                plt.xticks([])
+                plt.yticks([])
+                break
+    fig.savefig("ae_images.eps", format="eps")
+    plt.close()
+
 
 def generate_pgd(data, target, device, model, epsilon, alpha = 1e4, num_iter = 100, perturb_wrong = False):
         # Set requires_grad attribute of tensor. Important for Attack
