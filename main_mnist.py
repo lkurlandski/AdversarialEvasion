@@ -11,7 +11,7 @@ from torchvision import datasets, transforms
 from tqdm import tqdm
 from time import *
 
-from generate import adversarial_samples
+from generate import _adversarial_samples
 from model import DLS_Model
 from utils import get_models_path, get_highest_file, show_some_image
 
@@ -69,15 +69,7 @@ def training(
 
                 if attack is not None:
                     for epsilon in epsilons:
-                        at_loader = [(i.unsqueeze(0), l.unsqueeze(0)) for i, l in zip(inputs, labels)]
-                        adv_exs, targets = [], []
-                        for adv_ex, target, _ in adversarial_samples(
-                            model, at_loader, device, epsilon, attack, n_per_class=float("inf")
-                        ):
-                            adv_exs.append(adv_ex)
-                            targets.append(target)
-                        adv_exs = torch.cat(adv_exs)
-                        targets = torch.tensor(targets, dtype=labels.dtype)
+                        adv_exs, targets, _, = _adversarial_samples(model, inputs, labels, attack, epsilon)
                         update(adv_exs.to(device), targets.to(device))
 
             val_acc = testing(model, valloader, device)
