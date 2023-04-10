@@ -14,7 +14,7 @@ from torchvision import datasets, transforms
 from tqdm import tqdm
 from time import *
 
-from generate import _adversarial_samples
+from generate import _adversarial_samples, accuracy_vs_epsilon
 from model import DLS_Model
 from utils import get_models_path, get_highest_file, show_some_image
 
@@ -35,7 +35,6 @@ def gen_ae(model_gen, test_loader, device, epsilon, attack): #generate ae, ten p
         data.to(device)
         perturbed_data, _, _ = _adversarial_samples(model_gen, data, target, attack, epsilon)
         
-            
         adv_examples.append(perturbed_data)
         correct.append(target.item())
     return adv_examples, correct #list of adv examples and correct targets
@@ -64,39 +63,51 @@ if __name__ == "__main__":
             ]
         ),
     )
+    
+    
+    
+    model_gen_l = DLS_Model()
+    model_gen_l = model_gen_l.to(device)
 
-    model = DLS_Model()
-    model = model.to(device)
-
-    model.load_state_dict(torch.load(model_gen))
+    model_gen_l.load_state_dict(torch.load(model_gen))
 
 
-    model.eval()
-
-
+    model_gen_l.eval()
 
     testloader = torch.utils.data.DataLoader(test_dataset, batch_size=1, shuffle=True)
     #epsilons = [0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9] #mod - add epsilon
     epsilons =  [0.05,0.1,0.15,0.2,0.25,0.3,0.35,0.4]  #mod - for training testing
+    
+    
+    model_test_l = DLS_Model()
+    model_test_l = model_test_l.to(device)
 
-    adv_ex = []
-    adv_ex_target = []
-    for i in range(len(epsilons)): #generate and make list of lists of ae and targets
-        temp_ex, temp_target = gen_ae(model, testloader, device, epsilons[i], attack)
-        adv_ex.append(temp_ex)
-        adv_ex_target.append(temp_target)
+    model_test_l.load_state_dict(torch.load(model_test))
 
-    model = DLS_Model()
-    model = model.to(device)
 
-    model.load_state_dict(torch.load(model_test))        
-    correct_percentage = []
-    for i in range(len(adv_ex)):#test target correct percetnage on test model
-        correct = 0
-        for j in range(len(adv_ex[i])):
-            guess = model(adv_ex[i][j])
-            if guess == adv_ex_target[i][j]:
-                correct = correct+1
-        correct_percentage.append(float (correct) / (float(len(adv_ex[i]))) )
-    print(correct_percentage)
+    model_test_l.eval()
+
+    accuracy_vs_epsilon(model_gen_l, model_test_l, device, testloader, epsilons, attack, n_per_class=10)
+
+
+    #adv_ex = []
+    #adv_ex_target = []
+    #for i in range(len(epsilons)): #generate and make list of lists of ae and targets
+    #    temp_ex, temp_target = gen_ae(model, testloader, device, epsilons[i], attack)
+    #    adv_ex.append(temp_ex)
+    #    adv_ex_target.append(temp_target)#
+#
+#    model = DLS_Model()
+#    model = model.to(device)#
+#
+#    model.load_state_dict(torch.load(model_test))        
+#    correct_percentage = []
+#    for i in range(len(adv_ex)):#test target correct percetnage on test model
+#        correct = 0
+#        for j in range(len(adv_ex[i])):
+#            guess = model(adv_ex[i][j])
+#            if guess == adv_ex_target[i][j]:
+#                correct = correct+1
+#        correct_percentage.append(float (correct) / (float(len(adv_ex[i]))) )
+#    print(correct_percentage)
     
