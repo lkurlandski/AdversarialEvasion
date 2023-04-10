@@ -61,7 +61,7 @@ def training(
         return loss
 
     path = get_models_path(attack, PRETRAINED)
-    path.mkdir(exist_ok=True)
+    path.mkdir(exist_ok=True, parents=True)
     report_file = path / f"report.csv"
     with open(report_file, "w") as handle:
         handle.write(f"epoch,tr_loss,std_val_acc,at_val_acc\n")

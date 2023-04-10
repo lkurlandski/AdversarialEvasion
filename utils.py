@@ -6,7 +6,7 @@ from time import *
 
 
 def get_models_path(attack: str, pretrained: bool):
-    return Path("models") / str(attack)
+    return Path("models") / str(pretrained) / str(attack)
 
 
 def get_highest_file(directory: str) -> Path:
