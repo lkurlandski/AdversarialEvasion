@@ -1,7 +1,7 @@
 from __future__ import print_function
 
 from argparse import ArgumentParser
-import statistics
+import typing as tp
 
 import torch
 from torch import Tensor
@@ -45,6 +45,11 @@ def training(
         epsilons: the epsilons for the attack
         **kwargs: keyword args for the attack
     """
+    
+    def report(epoch, tr_loss, std_val_acc, at_val_acc):
+        with open(report_file, "a") as handle:
+            handle.write(f"{epoch},{tr_loss},{std_val_acc},{at_val_acc}\n")
+    
 
     def update(X, y) -> Tensor:
         optimizer.zero_grad()
@@ -56,57 +61,60 @@ def training(
 
     path = get_models_path(attack)
     path.mkdir(exist_ok=True)
+    report_file = path / f"report.csv"
+    with open(report_file, "w") as handle:
+        handle.write(f"epoch,tr_loss,std_val_acc,at_val_acc\n")
 
     with tqdm(range(start_epoch, num_epoch + 1), unit="batch") as tepoch:
         for epoch in tepoch:
             tepoch.set_description(f"Epoch {epoch}")
             model.train()
+            tr_loss = 0
             for inputs, labels in tqdm(trainloader, leave=False):
                 inputs, labels = inputs.to(device), labels.to(device)
 
                 if standard:
-                    update(inputs, labels)
+                    loss = update(inputs, labels)
+                    tr_loss += loss.item()
 
                 if attack is not None:
                     for epsilon in epsilons:
                         adv_exs, targets, _, = _adversarial_samples(model, inputs, labels, attack, epsilon)
                         update(adv_exs.to(device), targets.to(device))
 
-            val_acc = testing(model, valloader, device)
-            at_acc = -1
-
-            # This doesn't work at the moment
-            # if attack is not None:
-            #     at_acc = {}
-            #     for epsilon in epsilons:
-            #         at_loader = (
-            #             (adv_ex, target)
-            #             for adv_ex, target, _ in adversarial_samples(
-            #                 model, valloader, device, epsilon, attack, n_per_class=float("inf")
-            #             )
-            #         )
-            #         at_acc[epsilon] = testing(model, at_loader, device)
-            #     at_acc = statistics.mean(at_acc.values())
-
-            tepoch.set_postfix(acc=f"{val_acc=} | {at_acc=}")
-
+            std_val_acc, at_val_acc = testing(model, valloader, device, standard, attack, epsilons)
+            report(epoch, tr_loss, std_val_acc, at_val_acc)
+            tepoch.set_postfix(acc=f"{std_val_acc=} | {at_val_acc=}")
             torch.save(model.state_dict(), path / f"{epoch}.pth")
 
 
-def testing(model, testloader, device) -> float:
+def testing(
+    model, testloader, device, standard: bool = True, attack: str = None, epsilons: tp.List[float] = None,
+) -> tp.Tuple[float, float]:
     model.eval()
-    correct = 0
-    total = 0
-    with torch.no_grad():
-        for data in testloader:
-            images, labels = data
-            images, labels = images.to(device), labels.to(device)
+    std_correct, std_total = 0, 0
+    at_correct, at_total = 0, 0
+    
+    # Need grad for the adversarial examples...
+    for data in testloader:
+        images, labels = data
+        images, labels = images.to(device), labels.to(device)
+        
+        if standard:
             outputs = model(images)
             _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
+            std_total += labels.size(0)
+            std_correct += (predicted == labels).sum().item()
+        
+        if attack is not None:
+            for epsilon in epsilons:
+                adv_exs, _, _, = _adversarial_samples(model, images, labels, attack, epsilon)
+                outputs = model(adv_exs)
+                _, predicted = torch.max(outputs.data, 1)
+                at_total += labels.size(0)
+                at_correct += (predicted == labels).sum().item()
 
-    return 100.0 * correct / total
+    return (100.0 * std_correct / std_total), (100.0 * at_correct / at_total)
 
 
 def main():

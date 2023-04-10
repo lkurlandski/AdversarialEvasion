@@ -11,7 +11,7 @@ def get_models_path(attack=None):
 
 def get_highest_file(directory: str) -> Path:
     directory = Path(directory)
-    files = list(f for f in directory.iterdir() if f.name[0] != ".")
+    files = list(f for f in directory.iterdir() if f.stem.isdigit())
     if not files:
         raise FileNotFoundError((directory / "*").as_posix())
 
