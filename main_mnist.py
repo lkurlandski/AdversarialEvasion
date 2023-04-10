@@ -3,6 +3,7 @@ from __future__ import print_function
 from argparse import ArgumentParser
 from copy import deepcopy
 from pathlib import Path
+import sys
 import typing as tp
 
 import torch
@@ -99,7 +100,8 @@ def training(
 
 
 def testing(
-    model, testloader, device, standard: bool = True, attack: str = None, epsilons: tp.List[float] = None,
+    model, testloader, device, standard: bool = True,
+    attack: str = None, epsilons: tp.List[float] = None,
 ) -> tp.Tuple[float, float]:
     model.eval()
     std_correct, std_total = 0, 0
@@ -173,6 +175,13 @@ def main():
         saved_model = None
         latest_epoch = 0
 
+    if EVAL_EPOCH is not None:
+        saved_model = get_models_path(ATTACK, PRETRAINED, USE_ONLY_FIRST_MODEL) / f"{EVAL_EPOCH}.pth"
+        model.load_state_dict(torch.load(saved_model))
+        acc = testing(model, testloader, DEVICE, standard=True, attack=ATTACK, epsilons=EPSILONS + [.15])
+        print("Test accuracy: ", acc)
+        sys.exit()
+
     if PRETRAINED is not None:
         saved_model = PRETRAINED
     
@@ -207,6 +216,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=128, help="Batch size for training and generating adversarial examples.")
     parser.add_argument("--device", type=str, default="cuda", help="Hardware device, e.g. `cpu`, `cuda:0`, etc.")
     parser.add_argument("--epochs", type=int, default=1, help="Number of epochs to run. If a pretrained model exists that has been trained for this many epochs, will not perform training.")
+    parser.add_argument("--eval_epoch", type=int, default=None, help="Model to evaluate.")
     parser.add_argument("--pretrained", type=str, default=None, help="Path to a pretrained model. If given, will finetune this model, presumably upon the adversarial examples.")
     parser.add_argument("--seed", type=int, default=0, help="Seed to control random number generators.")
     parser.add_argument("--use_only_first_model", action="store_true", default=False, help="If True, will only use the very first model to generate samples for training.")
@@ -217,6 +227,7 @@ if __name__ == "__main__":
     DEVICE = torch.device(args.device)
     EPOCHS = args.epochs
     EPSILONS = [0.05, 0.1, 0.2, 0.25, 0.3]
+    EVAL_EPOCH = args.eval_epoch
     PRETRAINED = Path(args.pretrained) if args.pretrained is not None else None
     SEED = args.seed
     USE_ONLY_FIRST_MODEL = args.use_only_first_model
