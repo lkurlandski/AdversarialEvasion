@@ -17,10 +17,8 @@ from time import *
 #%matplotlib inline
 import sys  # mod - sys argv
 from model import DLS_Model
-from utils import *
-from generate import *
-
-# specify the GPU device
+from utils import count_parameters, show_ae_image
+from generate import pgd
 
 
 def test_image_ae(
@@ -35,9 +33,7 @@ def test_image_ae(
     for (
         data,
         target,
-    ) in (
-        test_loader
-    ):  # mod - data has been shuffled when inserting, so it should be random already
+    ) in test_loader:  # mod - data has been shuffled when inserting, so it should be random already
 
         if number_class[int(target.item())] >= 10:
             continue
@@ -49,7 +45,7 @@ def test_image_ae(
 
         # Send the data and label to the device
         if attack == "pgd":
-            perturbed_data = generate_pgd(data, target, device, model, epsilon)
+            perturbed_data = pgd(data, target, device, model, epsilon)
         # Re-classify the perturbed image
         elif attack == "fgsm":
             data, target = data.to(device), target.to(device)
@@ -58,9 +54,7 @@ def test_image_ae(
 
             # Forward pass the data through the model
             output = model(data)
-            init_pred = output.max(1, keepdim=True)[
-                1
-            ]  # get the index of the max log-probability
+            init_pred = output.max(1, keepdim=True)[1]  # get the index of the max log-probability
 
             # If the initial prediction is wrong, dont bother attacking, just move on
 
@@ -77,7 +71,7 @@ def test_image_ae(
             data_grad = data.grad.data
 
             # Call FGSM Attack
-            perturbed_data = fgsm_attack(data, epsilon, data_grad)
+            perturbed_data = fgsm(data, epsilon, data_grad)
         elif attack == "igsm":
             alpha_igsm = 1
             data, target = data.to(device), target.to(device)
@@ -86,17 +80,13 @@ def test_image_ae(
 
             # Forward pass the data through the model
             output = model(data)
-            init_pred = output.max(1, keepdim=True)[
-                1
-            ]  # get the index of the max log-probability
-            perturbed_data = igsm_attack(model, data, target, epsilon)
+            init_pred = output.max(1, keepdim=True)[1]  # get the index of the max log-probability
+            perturbed_data = igsm(model, data, target, epsilon)
 
         output = model(perturbed_data)
 
         # Check for success
-        final_pred = output.max(1, keepdim=True)[
-            1
-        ]  # get the index of the max log-probability
+        final_pred = output.max(1, keepdim=True)[1]  # get the index of the max log-probability
         if final_pred.item() == target.item():
             correct += 1
             # Special case for saving 0 epsilon examples #mod - just save all the examples
@@ -136,11 +126,7 @@ device = torch.device("cuda" if use_cuda else "cpu")
 print(f"Model is using {device}")
 
 attack_type = sys.argv[1]  # mod -sys argve attack type check
-if (
-    (not attack_type == "fgsm")
-    and (not attack_type == "pgd")
-    and (not attack_type == "igsm")
-):
+if (not attack_type == "fgsm") and (not attack_type == "pgd") and (not attack_type == "igsm"):
     print("invald attack type")
 
 model = DLS_Model()
@@ -158,7 +144,11 @@ trainloader = torch.utils.data.DataLoader(
         "./data",
         train=True,
         download=True,
-        transform=transforms.Compose([transforms.ToTensor(),]),
+        transform=transforms.Compose(
+            [
+                transforms.ToTensor(),
+            ]
+        ),
     ),
     batch_size=BATCH_SIZE,
     shuffle=True,
@@ -168,29 +158,37 @@ testloader = torch.utils.data.DataLoader(
         "./data",
         train=False,
         download=True,
-        transform=transforms.Compose([transforms.ToTensor(),]),
+        transform=transforms.Compose(
+            [
+                transforms.ToTensor(),
+            ]
+        ),
     ),
     batch_size=BATCH_SIZE,
     shuffle=True,
 )
-attack_loader = torch.utils.data.DataLoader(  # from https://pytorch.org/tutorials/beginner/fgsm_tutorial.html
-    datasets.MNIST(
-        "./data",
-        train=False,
-        download=True,
-        transform=transforms.Compose([transforms.ToTensor(),]),
-    ),
-    batch_size=1,
-    shuffle=True,
+attack_loader = (
+    torch.utils.data.DataLoader(  # from https://pytorch.org/tutorials/beginner/fgsm_tutorial.html
+        datasets.MNIST(
+            "./data",
+            train=False,
+            download=True,
+            transform=transforms.Compose(
+                [
+                    transforms.ToTensor(),
+                ]
+            ),
+        ),
+        batch_size=1,
+        shuffle=True,
+    )
 )
 
 
 print(f"Model Parameters {count_parameters(model)/1000000}m")
 
 print(model)
-saved_model = (
-    "./mnist.pth"  # mod - change model path to test differently trained models
-)
+saved_model = "./mnist.pth"  # mod - change model path to test differently trained models
 # saved_model = './mnist_pgd_pre.pth'
 # if False:
 if os.path.exists(saved_model):
