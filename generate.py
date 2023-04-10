@@ -1,6 +1,4 @@
 """
-
-
 AHHH so this isn't exactly random, but it selects the first 10 elements found but whatever....
 """
 
@@ -33,13 +31,34 @@ def fgsm_attack(image, epsilon, data_grad) -> Tensor:
     return perturbed_image
 
 
-def other_attack() -> Tensor:
-    raise NotImplementedError("Reza")
+def igsm_attack(model, image, label, epsilon, alpha, num_iter) -> Tensor:
+    
+    model.eval()
+    perturbed_image = image.clone().detach()
+
+    for i in range(num_iter):
+        perturbed_image.requires_grad = True
+        output = model(perturbed_image)
+        loss = F.cross_entropy(output, label)
+        model.zero_grad()
+        loss.backward()
+        data_grad = perturbed_image.grad.data
+
+        sign_data_grad = data_grad.sign()
+
+        perturbed_image = perturbed_image + alpha * sign_data_grad
+
+        perturbed_image = torch.max(torch.min(perturbed_image, image + epsilon), image - epsilon).detach()
+
+    model.train()
+
+    return perturbed_image
+
 
 
 # This can be used for 2b, 2c, 3b, 3d
 def adversarial_samples(
-    model, loader, device, epsilon, attack, n_per_class=float("inf")
+    model, loader, device, epsilon, attack,alpha=1/255, num_iter=40, n_per_class=float("inf")
 ) -> Generator[Tuple[Tensor, int, int], None, bool]:
     """
     IMPORTANT:
@@ -96,8 +115,8 @@ def adversarial_samples(
         # Call Attack
         if attack == "FGSM":
             perturbed_data = fgsm_attack(data, epsilon, data_grad)
-        elif attack == "OTHER_ATTACK":
-            raise NotImplementedError("Reza")
+        elif attack == "IGSM":
+            perturbed_data = igsm_attack(model, data, target, epsilon, alpha, num_iter)
         else:
             raise ValueError(f"{attack} not recongized.")
 
