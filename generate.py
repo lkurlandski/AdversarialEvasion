@@ -33,10 +33,6 @@ def fgsm_attack(image, epsilon, data_grad) -> Tensor:
     return perturbed_image
 
 
-def other_attack() -> Tensor:
-    raise NotImplementedError("Reza")
-
-
 def generate_pgd(data, target, device, model, epsilon, alpha = 1e4, num_iter = 100, perturb_wrong = False):
         # Set requires_grad attribute of tensor. Important for Attack
         delta = torch.zeros_like(data, requires_grad=True)
@@ -50,6 +46,24 @@ def generate_pgd(data, target, device, model, epsilon, alpha = 1e4, num_iter = 1
         return perturbed_image, True
 
 
+def igsm_attack(model, image, label, epsilon, alpha, num_iter) -> Tensor:    
+    model.eval()
+    perturbed_image = image.clone().detach()
+
+    for _ in range(num_iter):
+        perturbed_image.requires_grad = True
+        output = model(perturbed_image)
+        loss = F.cross_entropy(output, label)
+        model.zero_grad()
+        loss.backward()
+        data_grad = perturbed_image.grad.data
+        sign_data_grad = data_grad.sign()
+        perturbed_image = perturbed_image + alpha * sign_data_grad
+        perturbed_image = torch.max(torch.min(perturbed_image, image + epsilon), image - epsilon)
+
+    return perturbed_image
+
+
 def _adversarial_samples(
     model, data, target, attack, epsilon,
 ):
@@ -61,6 +75,9 @@ def _adversarial_samples(
     # init_pred = output.max(1, keepdim=True)[1]
     # if init_pred.item() != target.item():
     #     return adv_ex, target, final_pred
+    
+    alpha = 1e4
+    num_iter = 100
 
     # Loop over all examples in test set
     if attack == "FGSM":
@@ -74,31 +91,26 @@ def _adversarial_samples(
         data_grad = data.grad.data
         # Call Attack
         perturbed_data = fgsm_attack(data, epsilon, data_grad)
-        final_pred = model(perturbed_data).max(1, keepdim=True)[1]
-        adv_ex = perturbed_data
-        return adv_ex, target, final_pred
         
     elif attack == "PGD":
-        alpha = 1e4
-        num_iter = 100
         # Set requires_grad attribute of tensor. Important for Attack
         delta = torch.zeros_like(data, requires_grad=True)
-        for t in range(num_iter):
+        for _ in range(num_iter):
             loss = nn.CrossEntropyLoss()(model(data + delta), target)
             loss.backward()
             delta.data = (delta + data.shape[0]*alpha*delta.grad.data).clamp(-epsilon,epsilon)
             delta.grad.zero_()
         perturbed_image = data + delta.detach()
         perturbed_data  = torch.clamp(perturbed_image, 0, 1)
-        final_pred = model(perturbed_data).max(1, keepdim=True)[1]
-        adv_ex = perturbed_data
-        return adv_ex, target, final_pred
 
-    elif attack == "OTHER_ATTACK":
-        raise NotImplementedError("Reza")
+    elif attack == "IGSM":
+        perturbed_data = igsm_attack(model, data, target, epsilon, alpha, num_iter)
+        
     else:
         raise ValueError(f"{attack} not recongized.")
 
+    final_pred = model(perturbed_data).max(1, keepdim=True)[1]
+    return perturbed_data, target, final_pred
 
 # This can be used for 2b, 2c, 3b, 3d
 def adversarial_samples(
