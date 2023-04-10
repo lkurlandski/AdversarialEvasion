@@ -44,11 +44,11 @@ def generate_pgd(data, target, device, model, epsilon, alpha = 1e4, num_iter = 1
         return perturbed_image, True
 
 
-def igsm_attack(model, image, label, epsilon, alpha, num_iter) -> Tensor:    
+def igsm_attack(model, image, label, epsilon, alpha = 1):
     model.eval()
     perturbed_image = image.clone().detach()
-
-    for _ in range(num_iter):
+    num_iter = min(epsilon + 4, int(1.25 * epsilon))
+    for i in range(num_iter):
         perturbed_image.requires_grad = True
         output = model(perturbed_image)
         loss = F.cross_entropy(output, label)
@@ -57,7 +57,9 @@ def igsm_attack(model, image, label, epsilon, alpha, num_iter) -> Tensor:
         data_grad = perturbed_image.grad.data
         sign_data_grad = data_grad.sign()
         perturbed_image = perturbed_image + alpha * sign_data_grad
-        perturbed_image = torch.max(torch.min(perturbed_image, image + epsilon), image - epsilon)
+        perturbed_image = torch.min(torch.max(perturbed_image, image - epsilon), image + epsilon)
+        perturbed_image = torch.clamp(perturbed_image, 0, 1)
+        perturbed_image = perturbed_image.detach()
 
     return perturbed_image
 
@@ -75,6 +77,7 @@ def _adversarial_samples(
     #     return adv_ex, target, final_pred
     
     alpha = 1e4
+    alpha_igsm = 1
     num_iter = 100
 
     # Loop over all examples in test set
@@ -102,7 +105,7 @@ def _adversarial_samples(
         perturbed_data  = torch.clamp(perturbed_image, 0, 1)
 
     elif attack == "IGSM":
-        perturbed_data = igsm_attack(model, data, target, epsilon, alpha, num_iter)
+        perturbed_data = igsm_attack(model, data, target, epsilon, alpha_igsm)
         
     else:
         raise ValueError(f"{attack} not recongized.")
