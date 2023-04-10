@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 from time import *
 
 
-def get_models_path(attack: str, pretrained: bool):
-    return Path("models") / bool(pretrained) / str(attack)
+def get_models_path(attack: str, pretrained: bool, use_only_first_model: bool):
+    return Path("models") / str(bool(pretrained)) / str(bool(use_only_first_model)) / str(attack)
 
 
 def get_best_model_file(directory: str) -> Path:

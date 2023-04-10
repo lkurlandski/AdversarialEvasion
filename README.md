@@ -34,3 +34,18 @@ python generate.py
 ```
 
 We can enhance this with a better CLI when the project comes together a little further.
+
+## TODO
+
+- 1
+- 2
+	- a
+	- b
+	- c
+	- d
+- 3
+- 4
+- 5
+
+
+

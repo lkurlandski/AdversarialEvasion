@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 from argparse import ArgumentParser
+from copy import deepcopy
 from pathlib import Path
 import typing as tp
 
@@ -29,6 +30,7 @@ def training(
     standard: bool = True,
     attack: str = None,
     epsilons: list = None,
+    use_only_first_model: bool = False,
 ):
     """Training.
 
@@ -60,7 +62,7 @@ def training(
         optimizer.step()
         return loss
 
-    path = get_models_path(attack, PRETRAINED)
+    path = get_models_path(attack, PRETRAINED, USE_ONLY_FIRST_MODEL)
     path.mkdir(exist_ok=True, parents=True)
     report_file = path / f"report.csv"
     with open(report_file, "w") as handle:
@@ -72,6 +74,13 @@ def training(
             model.train()
             tr_loss = 0
             for inputs, labels in tqdm(trainloader, leave=False):
+                if not use_only_first_model:
+                    adversarial_source_model = model
+                elif epoch == start_epoch:
+                    adversarial_source_model = deepcopy(model)
+                    adversarial_source_model.load_state_dict(model.state_dict())
+                    adversarial_source_model.eval()
+                
                 inputs, labels = inputs.to(device), labels.to(device)
 
                 if standard:
@@ -80,7 +89,7 @@ def training(
 
                 if attack is not None:
                     for epsilon in epsilons:
-                        adv_exs, targets, _, = _adversarial_samples(model, inputs, labels, attack, epsilon)
+                        adv_exs, targets, _, = _adversarial_samples(adversarial_source_model, inputs, labels, attack, epsilon)
                         update(adv_exs.to(device), targets.to(device))
 
             std_val_acc, at_val_acc = testing(model, valloader, device, standard, attack, epsilons)
@@ -158,7 +167,7 @@ def main():
     criterion = CrossEntropyLoss()
 
     try:
-        saved_model = get_highest_file(get_models_path(ATTACK, PRETRAINED))
+        saved_model = get_highest_file(get_models_path(ATTACK, PRETRAINED, USE_ONLY_FIRST_MODEL))
         latest_epoch = int(saved_model.stem)
     except FileNotFoundError:
         saved_model = None
@@ -183,6 +192,7 @@ def main():
             standard=True,
             attack=ATTACK,
             epsilons=EPSILONS,
+            use_only_first_model=USE_ONLY_FIRST_MODEL,
         )
 
     print(f"Let's visualize some test samples")
@@ -199,6 +209,7 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=1, help="Number of epochs to run. If a pretrained model exists that has been trained for this many epochs, will not perform training.")
     parser.add_argument("--pretrained", type=str, default=None, help="Path to a pretrained model. If given, will finetune this model, presumably upon the adversarial examples.")
     parser.add_argument("--seed", type=int, default=0, help="Seed to control random number generators.")
+    parser.add_argument("--use_only_first_model", action="store_true", default=False, help="If True, will only use the very first model to generate samples for training.")
     args = parser.parse_args()
 
     ATTACK = args.attack
@@ -208,5 +219,6 @@ if __name__ == "__main__":
     EPSILONS = [0.05, 0.1, 0.2, 0.25, 0.3]
     PRETRAINED = Path(args.pretrained) if args.pretrained is not None else None
     SEED = args.seed
+    USE_ONLY_FIRST_MODEL = args.use_only_first_model
 
     main()

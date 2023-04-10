@@ -6,6 +6,7 @@ AHHH so this isn't exactly random, but it selects the first 10 elements found bu
 from __future__ import print_function
 from collections import defaultdict
 from pprint import pprint
+import typing as tp
 from typing import Generator, Tuple
 import torch
 from torch import Tensor
@@ -29,6 +30,7 @@ def fgsm_attack(image, epsilon, data_grad) -> Tensor:
     perturbed_image = torch.clamp(perturbed_image, 0, 1)
     # Return the perturbed image
     return perturbed_image
+
 
 def show_ae_image(adv_examples, number, epsilons):
     fig = plt.figure(figsize=(8, 10))
@@ -115,7 +117,7 @@ def _adversarial_samples(
         data_grad = data.grad.data
         # Call Attack
         perturbed_data = fgsm_attack(data, epsilon, data_grad)
-        
+
     elif attack == "PGD":
         # Set requires_grad attribute of tensor. Important for Attack
         delta = torch.zeros_like(data, requires_grad=True)
@@ -136,7 +138,8 @@ def _adversarial_samples(
     final_pred = model(perturbed_data).max(1, keepdim=True)[1]
     return perturbed_data, target, final_pred
 
-# This can be used for 2b, 2c, 3b, 3d
+
+# Probably shouln't mess to much with this
 def adversarial_samples(
     model, dataset, device, epsilon, attack, n_per_class=float("inf"), batch_size=1,
 ) -> Generator[Tuple[Tensor, Tensor, Tensor], None, bool]:
@@ -189,23 +192,45 @@ def adversarial_samples(
     return all(n == n_per_class for n in tracker.values())
 
 
-def accuracy_vs_epsilon(model, loader, epsilons, attack, output_path, n_per_class=10):
+# Not essential
+# BROKEN
+def accuracy_vs_epsilon(model, loader, epsilons, attack, n_per_class=10) -> tp.Dict[float, float]:
 
     accuracies = {}
     for epsilon in tqdm(epsilons, postfix="epsilon"):
         correct = 0
         itr = adversarial_samples(model, loader.dataset, DEVICE, epsilon, attack, n_per_class, batch_size=16)
         with tqdm(itr, total=n_per_class * 10, leave=False, postfix="sample") as pbar:
-            for i, (_, target, final_pred) in enumerate(itr, 1):
+            for i, (adversarial_example, target, final_pred) in enumerate(itr, 1):
+                model2(adversarial_example)
                 if final_pred == target:
                     correct += 1
                 pbar.update(1)
         print(f"{epsilon=}  {correct=}  {i=}")
         accuracies[epsilon] = correct / i
 
-    plt.clf()
-    plt.plot(epsilons, [accuracies[e] for e in epsilons])
-    plt.savefig(output_path)
+    return accuracies
+
+
+# TODO
+def test_model(model_1, dataset, epsilon, attack, model_2 = None) -> float:
+
+    testing_model = model_2 if model_2 is not None else model_1
+    correct = 0
+    total = 0
+    for adv_ex, target, _ in adversarial_samples(
+        model_1, dataset, DEVICE, epsilon, attack, n_per_class=10, batch_size=16
+    ):
+        pred = testing_model(adv_ex)  # FIXME: get the label correctly
+        if pred == target:
+            correct += 1
+        total += 1
+
+    accuracy = correct / total
+    return accuracy
+    
+    
+
 
 
 def task_2bc(attack):
