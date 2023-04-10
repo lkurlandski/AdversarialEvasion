@@ -163,7 +163,7 @@ def adversarial_samples(
                 data_grad = perturbed_image.grad.data
                 sign_data_grad = data_grad.sign()
                 perturbed_image = perturbed_image + alpha * sign_data_grad
-                perturbed_image = torch.max(torch.min(perturbed_image, image + epsilon), image - epsilon).detach()
+                perturbed_image = torch.max(torch.min(perturbed_image, data + epsilon), data - epsilon).detach()
             perturbed_data = perturbed_image
             final_pred = model(perturbed_data).max(1, keepdim=True)[1]
             adv_ex = perturbed_data
