@@ -48,6 +48,7 @@ def igsm_attack(model, image, label, epsilon, alpha = 1):
     model.eval()
     perturbed_image = image.clone().detach()
     num_iter = min(epsilon + 4, int(1.25 * epsilon))
+    num_iter = 100  # FIXME: possibly remove
     for i in range(num_iter):
         perturbed_image.requires_grad = True
         output = model(perturbed_image)

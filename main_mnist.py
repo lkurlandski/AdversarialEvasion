@@ -60,7 +60,7 @@ def training(
         optimizer.step()
         return loss
 
-    path = get_models_path(attack)
+    path = get_models_path(attack, PRETRAINED)
     path.mkdir(exist_ok=True)
     report_file = path / f"report.csv"
     with open(report_file, "w") as handle:
@@ -158,12 +158,15 @@ def main():
     criterion = CrossEntropyLoss()
 
     try:
-        saved_model = get_highest_file(get_models_path(ATTACK))
+        saved_model = get_highest_file(get_models_path(ATTACK, PRETRAINED))
         latest_epoch = int(saved_model.stem)
     except FileNotFoundError:
         saved_model = None
         latest_epoch = 0
 
+    if PRETRAINED is not None:
+        saved_model = PRETRAINED
+    
     if saved_model is not None:
         model.load_state_dict(torch.load(saved_model))
 
