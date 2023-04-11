@@ -9,7 +9,7 @@ from __future__ import print_function
 from collections import defaultdict
 import typing as tp
 import torch
-from torch import Tensor
+from torch import tensor, Tensor
 from torch.nn import CrossEntropyLoss
 from torch.nn.functional import cross_entropy, nll_loss
 from torch.utils.data import Dataset, DataLoader, Subset
@@ -144,7 +144,7 @@ def generate_adversarial_samples(
         batch_size (int, optional): Batch size for tensor computing. Defaults to 1.
 
     Yields:
-        (Tensor): adversarial examples corresponding to the input data
+        (Tensor): adversarial examples corresponding to the input data (batch_size=batch_size)
         (Tensor): true labels of the adversarial data (same as input argument)
         (Tensor): predicted labels of the adversarial input data
 
@@ -155,21 +155,30 @@ def generate_adversarial_samples(
         >>>     # final_pred is a Tensor
         >>>     do_something(perturbed_data, target, final_pred)
     """
+    
+    model.eval()
 
     # Figure out which indices to use to include n_per_class in
     tracker = defaultdict(lambda: 0)
     indices = []
     for i, (_, target) in enumerate(dataset):
-        if tracker[target.item()] >= n_per_class:
+        if tracker[target] >= n_per_class:
             continue
-        tracker[target.item()] += 1
+        tracker[target] += 1
         indices.append(i)
-
+    
     # Create a batched dataloader that will use the selected indices
-    loader = DataLoader(dataset, batch_size=batch_size, sampler=Subset(dataset, indices))
-    model.eval()
+    loader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        # sampler=Subset(dataset, indices),  # bug occurs don't know why
+    )
 
     # Loop through the specified indices and generate the examples
-    for data, target in loader:
+    indices = set(indices)
+    for i, (data, target) in enumerate(loader):
+        if i not in indices:  # bug workaround
+            continue
         data, target = data.to(device), target.to(device)
         yield adversarial_samples(model, data, target, attack, epsilon)

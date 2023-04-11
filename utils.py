@@ -4,28 +4,29 @@ import typing as tp
 
 import matplotlib.pyplot as plt
 import pandas as pd
+from torch import Tensor
 from torch.nn import Module
 from torch.utils.data import DataLoader
 
 
-def show_ae_image(adv_examples, number, epsilons):
+def show_ae_image(adv_examples, number, epsilons, out):
     fig = plt.figure(figsize=(8, 10))
     counter = 0
-    for examples in range(len(adv_examples)):
-        labels = [i[0] for i in adv_examples[examples]]
-        output = [i[1] for i in adv_examples[examples]]
-        images = [i[2] for i in adv_examples[examples]]
-        for i in range(len(adv_examples[examples])):
+    for j in range(len(adv_examples)):
+        labels = [i[0] for i in adv_examples[j]]
+        output = [i[1] for i in adv_examples[j]]
+        images = [i[2] for i in adv_examples[j]]
+        for i in range(len(adv_examples[j])):
             if labels[i] == number:
                 plt.subplot(5, 5, counter + 1)
                 counter += 1
                 plt.tight_layout()
                 plt.imshow(images[i], cmap="gray", interpolation="none")
-                plt.title("Epsilon: {}\nOutput: {}".format(epsilons[examples], output[i]))
+                plt.title("Epsilon: {}\nOutput: {}".format(epsilons[j], output[i]))
                 plt.xticks([])
                 plt.yticks([])
                 break
-    fig.savefig("ae_images.eps", format="eps")
+    fig.savefig(out, dpi=400)
     plt.close()
 
 
