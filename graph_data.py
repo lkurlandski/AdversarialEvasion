@@ -5,6 +5,8 @@ from copy import deepcopy
 from pathlib import Path
 import sys
 import typing as tp
+import pathlib
+import os
 
 import torch
 from torch import Tensor
@@ -30,9 +32,7 @@ def gen_ae(model_gen, test_loader, device, epsilon, attack): #generate ae, ten p
         
         if (sum(number_class) >= 100):
             break #when 100 samples
-        
         number_class[int(target.item())] += 1
-        data.to(device)
         perturbed_data, _, _ = _adversarial_samples(model_gen, data, target, attack, epsilon)
         
         adv_examples.append(perturbed_data)
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     print("Torch", torch.__version__, "CUDA", torch.version.cuda)
     use_cuda = use_cuda and torch.cuda.is_available()
 
-
+    use_cuda = False
     device = torch.device("cuda" if use_cuda else "cpu")
     print(f"Model is using {device}")
 
@@ -79,35 +79,37 @@ if __name__ == "__main__":
     epsilons =  [0.05,0.1,0.15,0.2,0.25,0.3,0.35,0.4]  #mod - for training testing
     
     
-    model_test_l = DLS_Model()
-    model_test_l = model_test_l.to(device)
+  
 
-    model_test_l.load_state_dict(torch.load(model_test))
-
-
-    model_test_l.eval()
-
-    accuracy_vs_epsilon(model_gen_l, model_test_l, device, testloader, epsilons, attack, n_per_class=10)
+    #accuracy_vs_epsilon(model_gen_l, model_test_l, testloader, device, epsilons, attack, n_per_class=10)
 
 
-    #adv_ex = []
-    #adv_ex_target = []
-    #for i in range(len(epsilons)): #generate and make list of lists of ae and targets
-    #    temp_ex, temp_target = gen_ae(model, testloader, device, epsilons[i], attack)
-    #    adv_ex.append(temp_ex)
-    #    adv_ex_target.append(temp_target)#
-#
-#    model = DLS_Model()
-#    model = model.to(device)#
-#
-#    model.load_state_dict(torch.load(model_test))        
-#    correct_percentage = []
-#    for i in range(len(adv_ex)):#test target correct percetnage on test model
-#        correct = 0
-#        for j in range(len(adv_ex[i])):
-#            guess = model(adv_ex[i][j])
-#            if guess == adv_ex_target[i][j]:
-#                correct = correct+1
-#        correct_percentage.append(float (correct) / (float(len(adv_ex[i]))) )
-#    print(correct_percentage)
-    
+    adv_ex = []
+    adv_ex_target = []
+    for i in range(len(epsilons)): #generate and make list of lists of ae and targets
+        temp_ex, temp_target = gen_ae(model_gen_l, testloader, device, epsilons[i], attack)
+        adv_ex.append(temp_ex)
+        adv_ex_target.append(temp_target)#
+        
+    test_list = []
+    if model_test[-3:] == 'pth':#checking for entire folder or single model
+        test_list.append(model_test)
+    else:
+        test_list = [f for f in os.listdir(model_test) if f.endswith('.pth')]
+    for k in range(len(test_list)):
+        model = DLS_Model()
+        model = model.to(device)
+        model.load_state_dict(torch.load(test_list[k]))   
+        model.eval()     
+        correct_percentage = []
+        for i in range(len(adv_ex)):#test target correct percetnage on test model
+            correct = 0
+            for j in range(len(adv_ex[i])):
+                guess = model(adv_ex[i][j])
+                final_pred =  guess.max(1, keepdim=True)[1]
+                if final_pred == adv_ex_target[i][j]:
+                    correct = correct+1
+            correct_percentage.append(float (correct) / (float(len(adv_ex[i]))) )
+        print(test_list[k])    
+        print(correct_percentage)
+        
