@@ -55,14 +55,23 @@ We can enhance this with a better CLI when the project comes together a little f
 ## Output
 
 -- models
+
    -- {PRETRAINED}
+   
       -- {USE_ONLY_FIRST_MODEL}
+      
 	     -- {ATTACK}
+	     
 			-- 1.pth
+			
 			-- ...
+			
 			-- N.pth
+			
 			-- report.csv
+			
 			-- best_at.csv
+			
 			-- best_std.csv
 
 
