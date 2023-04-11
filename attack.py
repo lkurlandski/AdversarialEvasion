@@ -1,8 +1,6 @@
 """
 Adversarial example generation.
 
-TODO:
-- add documentation of our sources for fgsm, igsm, and pgd
 """
 
 from __future__ import print_function
@@ -25,6 +23,7 @@ def fgsm(
     epsilon: float,
 ) -> Tensor:
     """Fast Gradient Sign Method."""
+    """https://pytorch.org/tutorials/beginner/fgsm_tutorial.html"""
 
     loss = nll_loss(model(data), target)
     model.zero_grad()
@@ -43,7 +42,9 @@ def pgd(
     alpha: float = 1e4,
     num_iter: int = 100,
 ) -> Tensor:
+
     """Projected Gradient Descent."""
+    """Tutorial that used for writing the PGD code: https://adversarial-ml-tutorial.org/adversarial_examples/"""
 
     delta = torch.zeros_like(data, requires_grad=True)
     for _ in range(num_iter):
@@ -65,10 +66,10 @@ def igsm(
     num_iter: int = 100,
 ) -> Tensor:
     """Iterative gradient sign method."""
+    """wrote the code by looking at the equation from the main paper (Kurakin et al.) https://arxiv.org/pdf/1607.02533.pdf"""
 
     model.eval()
     perturbed_image = image.clone().detach()
-    num_iter = min(epsilon + 4, int(1.25 * epsilon))
     num_iter = 100
 
     for _ in range(num_iter):
@@ -85,6 +86,7 @@ def igsm(
         perturbed_image = perturbed_image.detach()
 
     return perturbed_image
+
 
 
 def adversarial_samples(

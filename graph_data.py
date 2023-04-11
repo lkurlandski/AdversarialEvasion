@@ -1,3 +1,7 @@
+"""
+Generating the graph data
+"""
+
 from __future__ import print_function
 
 from argparse import ArgumentParser

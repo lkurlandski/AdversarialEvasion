@@ -1,7 +1,6 @@
 """
 Train and evaluate the classifiers.
 """
-
 from __future__ import print_function
 
 from argparse import ArgumentParser
