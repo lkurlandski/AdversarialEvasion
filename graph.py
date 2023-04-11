@@ -12,6 +12,10 @@ import numpy as np
 #using: output/False/False/None/18.pth
  #python3 graph_data.py output/False/False/None/18.pth output/False/True/FGSM FGSM
 
+
+
+#### graph for aversarial examples against non-adv trained model
+
 epsilons = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
 
 fgsm_y = [0.9875, 0.7175, 0.26, 0.11, 0.0975, 0.1, 0.1, 0.1, 0.1, 0.1]
@@ -45,31 +49,31 @@ plt.grid(linewidth=0.7)
 plt.gca().set_ylim(bottom=0, top=1)
 plt.gca().set_xlim(0, 1)
 plt.savefig(string_title_acc, format="eps")
-plt.savefig(string_title_acc, format="png")
+plt.savefig(string_title_acc2, format="png")
 plt.show()
 plt.clf()
 
 
 #### ae training models agains benigin
 
-std_model = 98.80
+std_model = 98.5
 
-fgsm_new_y = 80.5
-
-
+fgsm_new_y = 98.75
 
 
-fgsm_pre_y = 80.5
 
 
+fgsm_pre_y = 98.25
 
 
 
 
 
-pgd_y = 80.2
 
-igsm_y = 80.2
+
+pgd_y = 99.5
+
+igsm_y = 99.75
 
 benign_val = [std_model, fgsm_new_y, fgsm_pre_y, pgd_y, igsm_y]
 
@@ -77,28 +81,31 @@ models = ("Clean", "FGSM/n", "FGSM/p", "PGD", "IGSM")
 x_pos = np.arange(len(models))
 plt.figure(figsize=(6, 4.5))
 string_title_acc = "at_benign" + ".eps"
+string_title_acc2 = "at_benign" + ".png"
 # plt.title('model accuracy')
-plt.bar(x_pos, benign_val, color=["black", "red", "green", "blue", "yellow"])
+plt.bar(x_pos, benign_val, color=["black", "red", "green", "blue", "orange"])
 plt.tick_params(axis="both", labelsize=14)
 plt.tick_params(axis="both", labelsize=14)
-plt.ylabel("Accuracy", fontsize=16)
+plt.ylabel("Accuracy (%)", fontsize=16)
 plt.xlabel("Model", fontsize=16)
 plt.xticks(x_pos, models)
-plt.gca().set_ylim(bottom=0, top=100)
+plt.yticks(np.arange(80,105, 5))
+plt.gca().set_ylim(bottom=80, top=100)
 plt.savefig(string_title_acc, format="eps")
+plt.savefig(string_title_acc2, format="png")
 plt.show()
 plt.clf()
 
 
 
 
-#### at_adv graph
-epsilons = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4]  # placeholder
+#### at_adv graph- graph for aversarial trained models against same attacks
+epsilons = [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4]  # placeholder
 
 
 # output/False/True/FGSM/18.pth
 # [0.987, 0.985, 0.981, 0.978, 0.976, 0.976, 0.768, 0.338]
-fgsm_new_y = [0.987, 0.985, 0.981, 0.978, 0.976, 0.976, 0.768, 0.338] # placeholder
+fgsm_new_y = [0.9875, 0.987, 0.985, 0.981, 0.978, 0.976, 0.976, 0.768, 0.338] # placeholder
 # output/False/True/FGSM/1.pth
 # [0.964, 0.965, 0.963, 0.953, 0.946, 0.941, 0.878, 0.666]
 # output/False/True/FGSM/10.pth
@@ -144,7 +151,7 @@ fgsm_new_y = [0.987, 0.985, 0.981, 0.978, 0.976, 0.976, 0.768, 0.338] # placehol
 
 # output/True/True/FGSM/18.pth
 # [0.987, 0.988, 0.991, 0.982, 0.983, 0.983, 0.848, 0.373]
-fgsm_pre_y = [0.987, 0.988, 0.991, 0.982, 0.983, 0.983, 0.848, 0.373] # placeholder
+fgsm_pre_y = [0.9825, 0.987, 0.988, 0.991, 0.982, 0.983, 0.983, 0.848, 0.373] # placeholder
 # output/True/True/FGSM/1.pth
 # [0.973, 0.969, 0.966, 0.955, 0.95, 0.936, 0.892, 0.727]
 # output/True/True/FGSM/10.pth
@@ -194,7 +201,7 @@ fgsm_pre_y = [0.987, 0.988, 0.991, 0.982, 0.983, 0.983, 0.848, 0.373] # placehol
 
 # output/True/True/PGD/18.pth
 # [1.0, 1.0, 0.99, 0.98, 1.0, 0.96, 0.43, 0.23]
-pgd_y = [1.0, 1.0, 0.99, 0.98, 1.0, 0.96, 0.43, 0.23] # placeholder
+pgd_y = [0.995, 1.0, 1.0, 0.99, 0.98, 1.0, 0.96, 0.43, 0.23] # placeholder
 
 
 # output/True/True/PGD/1.pth
@@ -248,7 +255,7 @@ pgd_y = [1.0, 1.0, 0.99, 0.98, 1.0, 0.96, 0.43, 0.23] # placeholder
 
 # output/True/True/IGSM/18.pth
 # [0.98, 0.99, 0.99, 1.0, 0.96, 0.95, 0.52, 0.15]
-igsm_y = [0.98, 0.99, 0.99, 1.0, 0.96, 0.95, 0.52, 0.15]  # placeholder
+igsm_y = [0.9975, 0.98, 0.99, 0.99, 1.0, 0.96, 0.95, 0.52, 0.15]  # placeholder
 # output/True/True/IGSM/1.pth
 # [0.96, 0.98, 0.95, 0.97, 0.93, 0.96, 0.86, 0.45]
 # output/True/True/IGSM/10.pth
@@ -293,6 +300,7 @@ igsm_y = [0.98, 0.99, 0.99, 1.0, 0.96, 0.95, 0.52, 0.15]  # placeholder
 
 plt.figure(figsize=(6, 4.5))
 string_title_acc = "at_adv" + ".eps"
+string_title_acc2 = "at_adv" + ".png"
 plt.plot(epsilons, fgsm_new_y)
 plt.plot(epsilons, fgsm_pre_y)
 plt.plot(epsilons, pgd_y)
@@ -302,11 +310,12 @@ plt.ylabel("Accuracy", fontsize=16)
 plt.xlabel("Epsilon", fontsize=16)
 plt.tick_params(axis="both", labelsize=14)
 plt.tick_params(axis="both", labelsize=14)
-plt.legend(["FGSM - new model", "FGSM - pre-trained", "PGD", "IGSM"], loc="right")
+plt.legend(["FGSM - new model", "FGSM - pre-trained", "PGD", "IGSM"], loc="lower left")
 plt.grid(linewidth=0.7)
 plt.gca().set_ylim(bottom=0, top=1)
 plt.gca().set_xlim(0, 0.4)
 plt.savefig(string_title_acc, format="eps")
+plt.savefig(string_title_acc2, format="png")
 plt.show()
 plt.clf()
 
@@ -316,11 +325,11 @@ plt.clf()
 
 
 #### at_cross_Attac
-epsilons = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4]  # placeholder
+epsilons = [0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4]  # placeholder
 
 # output/True/True/PGD/18.pth
 # [0.9933333333333333, 0.9966666666666667, 0.99, 0.9833333333333333, 0.9833333333333333, 0.9833333333333333, 0.5833333333333334, 0.22333333333333333]
-fgsm_pgd =  [0.9933333333333333, 0.9966666666666667, 0.99, 0.9833333333333333, 0.9833333333333333, 0.9833333333333333, 0.5833333333333334, 0.22333333333333333] # fgsm attacks pgd
+fgsm_pgd =  [0.9875, 0.9975, 0.9925, 0.985, 0.9925, 0.975, 0.97, 0.5875, 0.265] # fgsm attacks pgd
 # output/True/True/PGD/1.pth
 # [0.97, 0.98, 0.9433333333333334, 0.93, 0.9266666666666666, 0.9, 0.8, 0.47333333333333333]
 # output/True/True/PGD/10.pth
@@ -365,7 +374,7 @@ fgsm_pgd =  [0.9933333333333333, 0.9966666666666667, 0.99, 0.9833333333333333, 0
 
 # output/True/True/FGSM/18.pth
 # [0.9966666666666667, 0.9766666666666667, 0.98, 0.99, 0.97, 0.9733333333333334, 0.7433333333333333, 0.3333333333333333]
-pgd_fgsm = [0.9966666666666667, 0.9766666666666667, 0.98, 0.99, 0.97, 0.9733333333333334, 0.7433333333333333, 0.3333333333333333] # pgd attacks fgsm
+pgd_fgsm =  [0.99, 0.9925, 0.985, 0.985, 0.99, 0.9725, 0.98, 0.7575, 0.33] # pgd attacks fgsm
 
 
 # output/True/True/FGSM/1.pth
@@ -415,6 +424,7 @@ pgd_fgsm = [0.9966666666666667, 0.9766666666666667, 0.98, 0.99, 0.97, 0.97333333
 
 plt.figure(figsize=(6, 4.5))
 string_title_acc = "pgd_cross_attack" + ".eps"
+string_title_acc2 = "pgd_cross_attack" + ".png"
 plt.plot(epsilons, fgsm_pgd)
 plt.plot(epsilons, pgd_fgsm)
 # plt.title('model accuracy')
@@ -422,21 +432,23 @@ plt.ylabel("Accuracy", fontsize=16)
 plt.xlabel("Epsilon", fontsize=16)
 plt.tick_params(axis="both", labelsize=14)
 plt.tick_params(axis="both", labelsize=14)
-plt.legend(["FGSM->PGD", "PGD->FGSM"], loc="center left")
+plt.legend(["FGSM->PGD", "PGD->FGSM"], loc="lower left")
 plt.grid(linewidth=0.7)
 plt.gca().set_ylim(bottom=0, top=1)
 plt.gca().set_xlim(0, 0.4)
 plt.savefig(string_title_acc, format="eps")
+plt.savefig(string_title_acc2, format="png")
 plt.show()
 plt.clf()
 
 #### at_cross_Attac
-epsilons = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4]  # placeholder
+epsilons = [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4]  # placeholder
 
 
 # output/True/True/IGSM/18.pth
 # [0.985, 0.99, 0.9925, 0.975, 0.98, 0.985, 0.7475, 0.225]
-fgsm_igsm = [0.985, 0.99, 0.9925, 0.975, 0.98, 0.985, 0.7475, 0.225] #fgsm attacks igsm
+fgsm_igsm = [0.985, 0.94, 0.7275, 0.3975, 0.2525, 0.1425, 0.11, 0.0975, 0.0975]
+ #fgsm attacks igsm
 # output/True/True/IGSM/1.pth
 # [0.9675, 0.9625, 0.9575, 0.9625, 0.9325, 0.9325, 0.8675, 0.545]
 # output/True/True/IGSM/10.pth
@@ -480,7 +492,9 @@ fgsm_igsm = [0.985, 0.99, 0.9925, 0.975, 0.98, 0.985, 0.7475, 0.225] #fgsm attac
 
 
 
-igsm_fgsm = [0.9775, 0.9925, 0.99, 0.985, 0.985, 0.9575, 0.4475, 0.2225] # placeholder
+igsm_fgsm = [0.9875, 0.98, 0.9875, 0.985, 0.98, 0.975, 0.985, 0.7625, 0.31]
+
+ # placeholder
 # [0.965, 0.9625, 0.9625, 0.9675, 0.96, 0.965, 0.8875, 0.64]
 # output/True/True/FGSM/10.pth
 # [0.9875, 0.985, 0.98, 0.9875, 0.9825, 0.9825, 0.705, 0.2425]
@@ -524,6 +538,7 @@ igsm_fgsm = [0.9775, 0.9925, 0.99, 0.985, 0.985, 0.9575, 0.4475, 0.2225] # place
 
 plt.figure(figsize=(6, 4.5))
 string_title_acc = "igsm_cross_attack" + ".eps"
+string_title_acc2 = "igsm_cross_attack" + ".png"
 plt.plot(epsilons, fgsm_igsm)
 plt.plot(epsilons, igsm_fgsm)
 # plt.title('model accuracy')
@@ -531,11 +546,12 @@ plt.ylabel("Accuracy", fontsize=16)
 plt.xlabel("Epsilon", fontsize=16)
 plt.tick_params(axis="both", labelsize=14)
 plt.tick_params(axis="both", labelsize=14)
-plt.legend(["FGSM->IGSM", "IGSM->FGSM"], loc="center left")
+plt.legend(["FGSM->IGSM", "IGSM->FGSM"], loc="lower left")
 plt.grid(linewidth=0.7)
 plt.gca().set_ylim(bottom=0, top=1)
 plt.gca().set_xlim(0, 0.4)
 plt.savefig(string_title_acc, format="eps")
+plt.savefig(string_title_acc2, format="png")
 plt.show()
 plt.clf()
 
@@ -560,6 +576,7 @@ igsm_y = [7.64140543411486, 6.78314277902246, 5.42207394912839, 4.89320301264524
 
 plt.figure(figsize=(6, 4.5))
 string_title_acc = "t_loss" + ".eps"
+string_title_acc2 = "t_loss" + ".eps"
 plt.plot(epochs, fgsm_new_y)
 plt.plot(epochs, fgsm_pre_y)
 plt.plot(epochs, pgd_y)
@@ -571,8 +588,11 @@ plt.tick_params(axis="both", labelsize=14)
 plt.tick_params(axis="both", labelsize=14)
 plt.legend(["FGSM - new model", "FGSM - pre-trained", "PGD", "IGSM"], loc="right")
 plt.grid(linewidth=0.7)
+plt.yticks(np.arange(0,40, 10))
 #plt.gca().set_ylim(bottom=0, top=1)
-plt.gca().set_xlim(0, 20)
+plt.gca().set_xlim(1, 20)
+plt.gca().set_ylim(0,50)
 plt.savefig(string_title_acc, format="eps")
+plt.savefig(string_title_acc2, format="png")
 plt.show()
 plt.clf()
