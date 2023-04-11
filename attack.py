@@ -31,7 +31,7 @@ def fgsm(
     loss.backward()
     sign_data_grad = data.grad.data.sign()
     perturbed_data = data + epsilon * sign_data_grad
-    perturbed_data = torch.clamp(data, 0, 1)
+    perturbed_data = torch.clamp(perturbed_data, 0, 1)
     return perturbed_data
 
 
